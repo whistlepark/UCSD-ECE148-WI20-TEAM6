@@ -32,3 +32,7 @@ information.
 >git commit -a -m "insert message here" (adds added files with message)
 >
 >git push (pushes to master branch)
+
+#### Notes to self
+1. In pyrealsense there is a function to align depth and color streams
+can we implement this in one of the wrappers? slam/ros/pyreal

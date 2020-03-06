@@ -20,6 +20,7 @@ def region_of_interest(img, vertices):
 
 
 # Setup:
+thresh_val = 1 # meter...
 pipe = rs.pipeline()
 cfg = rs.config()
 cfg.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
@@ -37,13 +38,10 @@ try:
             pipe.wait_for_frames()
         depth_scale = profile.get_device().first_depth_sensor().get_depth_scale()
         print('Depth Scale: ', depth_scale)
-        # Store next frameset for later processing:
+
+        # Store next FRAMESET for later processing:
         frameset = pipe.wait_for_frames()
         color_frame = frameset.get_color_frame()
-        depth_frame = frameset.get_depth_frame()
-        # depth_frame = rs.hole_filling_filter().process(depth_frame)
-        depth_frame = rs.spatial_filter().process(depth_frame)
-        depth_frame = rs.temporal_filter().process(depth_frame)
 
         # Cleanup:
 
@@ -51,26 +49,6 @@ try:
         print("Frames Captured")
 
         color = np.asanyarray(color_frame.get_data())
-        hsv = cv2.cvtColor(color, cv2.COLOR_BGR2HSV)
-        h, s, v = cv2.split(hsv)
-
-        ##(3) threshold the S channel using adaptive method(`THRESH_OTSU`) or fixed thresh
-        th, threshed = cv2.threshold(v, 50, 255, cv2.THRESH_BINARY_INV)
-
-        ##(4) find all the external contours on the threshed S
-        cnts = cv2.findContours(threshed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[-2]
-        canvas = color.copy()
-        # cv2.drawContours(canvas, cnts, -1, (0,255,0), 1)
-
-        ## sort and choose the largest contour
-        cnts = sorted(cnts, key=cv2.contourArea)
-        cnt = cnts[-1]
-
-        ## approx the contour, so the get the corner points
-        arclen = cv2.arcLength(cnt, True)
-        approx = cv2.approxPolyDP(cnt, 0.02 * arclen, True)
-        cv2.drawContours(canvas, [cnt], -1, (255, 0, 0), 1, cv2.LINE_AA)
-        cv2.drawContours(canvas, [approx], -1, (0, 0, 255), 1, cv2.LINE_AA)
 
         # SET UP REGION OF INTEREST
         rows, cols = color.shape[:2]
@@ -95,7 +73,6 @@ try:
 
         # COLORIZE THE IMAGES
         colorizer = rs.colorizer()
-        colorized_depth = np.asanyarray(colorizer.colorize(depth_frame).get_data())
 
         # Create alignment primitive with color as its target stream:
         align = rs.align(rs.stream.color)
@@ -103,15 +80,22 @@ try:
 
         # Update color and depth frames:
         aligned_depth_frame = frameset.get_depth_frame()
+
+        # Apply Post Processing Filters
         aligned_depth_frame = rs.hole_filling_filter().process(aligned_depth_frame)
         aligned_depth_frame = rs.spatial_filter().process(aligned_depth_frame)
         aligned_depth_frame = rs.temporal_filter().process(aligned_depth_frame)
-        dist = aligned_depth_frame.as_depth_frame().get_distance(146, 97)
-        print('Distance: ', dist)
+        # dist = aligned_depth_frame.as_depth_frame().get_distance(146, 97)
+        # print('Distance: ', dist)
 
         colorized_depth = np.asanyarray(colorizer.colorize(aligned_depth_frame).get_data())
         copied_depth = np.copy(colorized_depth)
+        aligned_depth = np.asanyarray(aligned_depth_frame.get_data())
+        # edges = cv2.Canny(copied_depth, 100, 200)
+        aligned_depth = aligned_depth*depth_scale
+
         interested_depth = region_of_interest(copied_depth, vertices)
+
         cv2.line(colorized_depth, tuple(bottom_left), tuple(bottom_right), (0, 255, 0), 5)
         cv2.line(colorized_depth, tuple(bottom_right), tuple(top_right), (0, 255, 0), 5)
         cv2.line(colorized_depth, tuple(top_left), tuple(bottom_left), (0, 255, 0), 5)
@@ -122,18 +106,37 @@ try:
         # Calculate mean depth in interested region of depth image:
         mask = np.zeros(colorized_depth.shape[:2], dtype=np.uint8)
         # top, left, bottom, right
-        cv2.rectangle(mask, top_left, bottom_right, 255, -1)
-        cv2.imshow('Mask', mask)
+        mask[top_left[1]:bottom_left[1], top_left[0]:top_right[0]] = 255
+        colorized_depth = cv2.bitwise_and(colorized_depth, colorized_depth, mask=mask)
+        aligned_depth = cv2.bitwise_and(aligned_depth, aligned_depth, mask=mask)
+
+        # Threshold for values less than one meter
+        #imgray = cv2.cvtColor(copied_depth, cv2.COLOR_BGR2GRAY)
+        ret, thresh2 = cv2.threshold(aligned_depth, 1, 255, cv2.THRESH_BINARY_INV)
+        image_8bit = np.uint8(thresh2 * 255)
+        contours, heirarchy = cv2.findContours(thresh2, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        cnt = contours[0]
+        M = cv2.moments(cnt)
+        area = cv2.contourArea(cnt)
+        x, y, w, h = cv2.boundingRect(cnt)
+        cv2.rectangle(thresh2, (x, y), (x + w, y + h), (0, 255, 0), 2)
+        cv2.imshow('threshold', thresh2)
+
         # cv2.rectangle(mask, (inner_rect[0], inner_rect[1]), (inner_rect[2], inner_rect[3]), 0, -1)
         interested_depth = interested_depth * depth_scale
         dist, _, _, _ = cv2.mean(colorized_depth[145, 97])
         print('OpenCV Dist: ', dist)
         # pixel_distance_in_meters = depth_frame.get_distance(369, 42)
         # Show the two frames together:
-        images = np.hstack((color, colorized_depth, hsv, canvas))
+        # cv2.bitwise_and(copied_depth, edges)
+        # ret, thresh3 = cv2.threshold(colorized_depth, 127, 255, cv2.THRESH_TRUNC)
+        # print(aligned_depth)
+        images = np.hstack((color, colorized_depth))
         # Show images
         cv2.namedWindow('RealSense: (RGB, DEPTH-ALL_FILTERS)', cv2.WINDOW_AUTOSIZE)
         cv2.imshow('RealSense: (RGB, DEPTH-ALL_FILTERS)', images)
+        # cv2.imshow('Edges', edges)
+        cv2.imshow('Aligned', aligned_depth)
         cv2.waitKey(1)
 
 except Exception as e:

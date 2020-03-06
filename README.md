@@ -32,6 +32,12 @@ Ideally, will take in camera data (rgb, depth,infra) as input
 and return objects and their location along with height and distance
 information.
 
+#### RGB vs Depth
+![RGB vs Depth](rgb_depth.png)
+
+#### Depth
+RealSense Viewer [Install Link](https://github.com/IntelRealSense/librealsense/blob/master/doc/installation.md)
+![depth](depth.png)
 #### Tutorials
 [Librealsense Python Wrapper](https://github.com/IntelRealSense/librealsense/tree/master/wrappers/python)
 

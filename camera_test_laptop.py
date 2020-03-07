@@ -20,7 +20,7 @@ def region_of_interest(img, vertices):
 
 
 # Setup:
-thresh_val = 1 # meter...
+thresh_val = 1  # meter...
 pipe = rs.pipeline()
 cfg = rs.config()
 cfg.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
@@ -91,8 +91,11 @@ try:
         colorized_depth = np.asanyarray(colorizer.colorize(aligned_depth_frame).get_data())
         copied_depth = np.copy(colorized_depth)
         aligned_depth = np.asanyarray(aligned_depth_frame.get_data())
+
+        depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(aligned_depth, alpha=0.03), cv2.COLORMAP_BONE)
+
         # edges = cv2.Canny(copied_depth, 100, 200)
-        aligned_depth = aligned_depth*depth_scale
+        aligned_depth = aligned_depth * depth_scale
 
         interested_depth = region_of_interest(copied_depth, vertices)
 
@@ -108,30 +111,68 @@ try:
         # top, left, bottom, right
         mask[top_left[1]:bottom_left[1], top_left[0]:top_right[0]] = 255
         colorized_depth = cv2.bitwise_and(colorized_depth, colorized_depth, mask=mask)
-        aligned_depth = cv2.bitwise_and(aligned_depth, aligned_depth, mask=mask)
+        # aligned_depth = cv2.bitwise_and(aligned_depth, aligned_depth, mask=mask)
 
         # Threshold for values less than one meter
-        #imgray = cv2.cvtColor(copied_depth, cv2.COLOR_BGR2GRAY)
-        ret, thresh2 = cv2.threshold(aligned_depth, 1, 255, cv2.THRESH_BINARY_INV)
-        image_8bit = np.uint8(thresh2 * 255)
-        contours, heirarchy = cv2.findContours(thresh2, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        cnt = contours[0]
-        M = cv2.moments(cnt)
-        area = cv2.contourArea(cnt)
-        x, y, w, h = cv2.boundingRect(cnt)
-        cv2.rectangle(thresh2, (x, y), (x + w, y + h), (0, 255, 0), 2)
-        cv2.imshow('threshold', thresh2)
+        imgray = cv2.cvtColor(depth_colormap, cv2.COLOR_BGR2GRAY)
+        blurred = cv2.GaussianBlur(imgray, (5, 5), 0)
+        thresh = cv2.threshold(blurred, 25, 255, cv2.THRESH_BINARY_INV)[1]
+        # thresh = cv2.bitwise_and(thresh, thresh, mask=mask)
+
+        kernel = np.ones((5, 5), np.uint8)
+        erosion = cv2.erode(thresh, kernel, iterations=5)
+        dilate = cv2.dilate(erosion, kernel, iterations=5)
+
+        opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
+        closing = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
+
+        # ret, imgray = cv2.threshold(imgray, 200, 255, cv2.THRESH_BINARY)
+        contours_opening, hierarchy_opening = cv2.findContours(opening.copy(), cv2.RETR_EXTERNAL,
+                                                               cv2.CHAIN_APPROX_SIMPLE)
+        contours_closing, hierarchy_closing = cv2.findContours(closing.copy(), cv2.RETR_EXTERNAL,
+                                                               cv2.CHAIN_APPROX_SIMPLE)
+        contours_thresh, hierarchy_thresh = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours_dilate, hierarchy_dilate = cv2.findContours(dilate.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours = contours_closing
+        heirarchy = hierarchy_closing
+
+        if not contours:
+            pass
+        else:
+            for i in range(len(contours)):
+                cnt = contours[i]
+                mask = np.zeros(imgray.shape, np.uint8)
+                cv2.drawContours(mask, contours, i, 255, -1)
+                # Get Moments and center location:
+                M = cv2.moments(cnt)
+                area = cv2.contourArea(cnt)
+                x, y, w, h = cv2.boundingRect(cnt)
+                cv2.rectangle(color, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                cx = int(x + w / 2)
+                cy = int(y + h / 2)
+                cv2.circle(color, (cx, cy), 10, (255, 0, 0))
+                # print('Object ', i, ' distance: ', cv2.mean(aligned_depth, mask=mask))
+                text = 'Dist: ' + str(cv2.mean(aligned_depth, mask=mask)[0])
+                try:
+                    cv2.putText(color, text, (cx, cy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+                except Exception as b:
+                    print(b)
+
+        cv2.drawContours(color, contours, -1, (0, 255, 0))
+        test_images = np.hstack((thresh, opening, closing, dilate))
+        cv2.namedWindow('TEST', cv2.WINDOW_AUTOSIZE)
+        cv2.imshow('TEST', test_images)
 
         # cv2.rectangle(mask, (inner_rect[0], inner_rect[1]), (inner_rect[2], inner_rect[3]), 0, -1)
         interested_depth = interested_depth * depth_scale
-        dist, _, _, _ = cv2.mean(colorized_depth[145, 97])
-        print('OpenCV Dist: ', dist)
+        # dist, _, _, _ = cv2.mean(colorized_depth[145, 97])
+        # print('OpenCV Dist: ', dist)
         # pixel_distance_in_meters = depth_frame.get_distance(369, 42)
         # Show the two frames together:
         # cv2.bitwise_and(copied_depth, edges)
         # ret, thresh3 = cv2.threshold(colorized_depth, 127, 255, cv2.THRESH_TRUNC)
         # print(aligned_depth)
-        images = np.hstack((color, colorized_depth))
+        images = np.hstack((color, depth_colormap))
         # Show images
         cv2.namedWindow('RealSense: (RGB, DEPTH-ALL_FILTERS)', cv2.WINDOW_AUTOSIZE)
         cv2.imshow('RealSense: (RGB, DEPTH-ALL_FILTERS)', images)

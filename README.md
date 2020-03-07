@@ -5,29 +5,17 @@ Contributions:
 
 Brian Rush, Aaron Hanna, Stephen Lien
 
----
 ## ROS/SLAM
-#### Useful Link
-[ROS/SLAM](https://mc.ai/intel-realsense-3d-camera-for-robotics-slam-with-code/)
 > Run the command: roslaunch ~/slam.launch
 > > Note: To view this in vnc use 'rviz = true' argument after command
-> > 
-> > example: roslaunch ~/slam.launch rviz = true
-> > 
 > > Make sure vncserver.sh is ran before using rviz!
 >
-> Make sure this is from home directory as the file is located there
+>Make sure this is from home directory as the file is located there
 >
----
-## Object Detection (.py)
-Inputs: Camera(rgb, depth, infra)
+## Object Detection
+>Inputs: Camera(rgb, depth, infra)
+>Outputs: Objects data
 
-Outputs: Objects data
-### Camera Information
-*Realsense D435 Camera* takes in depth image data as scalar values that
-can be multiplied by the depth_scale of the camera(intrinsics)
-![Realsense Camera](Realsense-D400-Cameras.png)
-### Scope
 Ideally, will take in camera data (rgb, depth,infra) as input
 and return objects and their location along with height and distance
 information.
@@ -50,16 +38,13 @@ RealSense Viewer [Install Link](https://github.com/IntelRealSense/librealsense/b
 >Outputs: Steering, Throttle
 >
 >
-
----
 ### Uploading to Git: Commands
->git add . (uploads all files)
->
 >git add -u (adds updated files)
 >
 >git commit -a -m "insert message here" (adds added files with message)
 >
 >git push (pushes to master branch)
----
+
 #### Notes to self
-1. Make sure images are **aligned**
+1. In pyrealsense there is a function to align depth and color streams
+can we implement this in one of the wrappers? slam/ros/pyreal

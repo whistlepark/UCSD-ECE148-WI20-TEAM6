@@ -1,6 +1,7 @@
 import cv2  # state of the art computer vision algorithms library
 import numpy as np  # fundamental package for scientific computing
 import pyrealsense2 as rs  # Intel RealSense cross-platform open-source API
+from ObjectDetection import ObjectDetection
 
 print("Environment Ready")
 
@@ -16,8 +17,6 @@ try:
         # Skip 5 first frames to give the Auto-Exposure time to adjust
         for x in range(5):
             pipe.wait_for_frames()
-        depth_scale = profile.get_device().first_depth_sensor().get_depth_scale()
-        print('Depth Scale: ', depth_scale)
 
         # Store next FRAMESET for later processing:
         frameset = pipe.wait_for_frames()
@@ -40,5 +39,21 @@ try:
         aligned_depth_frame = rs.spatial_filter().process(aligned_depth_frame)
         aligned_depth_frame = rs.temporal_filter().process(aligned_depth_frame)
 
+        aligned_depth = np.asanyarray(aligned_depth_frame.get_data())
+
+        object_detect = ObjectDetection()
+        object_detect.run(color, aligned_depth)
+        object_detect.visualize()
+        colorizer = rs.colorizer()
+        colorized_depth = np.asanyarray(colorizer.colorize(aligned_depth_frame).get_data())
+
+        images = np.hstack((color, colorized_depth))
+        # Show images
+        cv2.namedWindow('RealSense: (RGB, DEPTH-ALL_FILTERS)', cv2.WINDOW_AUTOSIZE)
+        cv2.imshow('RealSense: (RGB, DEPTH-ALL_FILTERS)', images)
+        cv2.waitKey(1)
+
 except Exception as e:
     print(e)
+finally:
+    pass

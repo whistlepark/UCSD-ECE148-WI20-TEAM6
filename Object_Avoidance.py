@@ -1,9 +1,7 @@
 import cv2 as cv
 import pyrealsense2 as rs
 import numpy as np
-import pandas as pd
-
-
+from ObjectDetection import ObjectDetection
 # input options in order (right->left): 'camera/rgb', 'camera/depth', 'camera/infra1', 'camera/infra2', 'slam/odom'
 
 class Object_Avoidance:
@@ -13,8 +11,8 @@ class Object_Avoidance:
     # For example: going at certain speed then on current trajectory will run into object, with width of object move
     # angle of steering so that the change in x (let's do right as default) is such that object is avoided
 
-    def __init__(self, object_data, odom):
-        self.object = object_data
+    def __init__(self, rgb, depth, odom):
+        self.object = ObjectDetection(rgb, depth).closest
         self.odom = odom
         self.height_threshold = 10 #cm??
 

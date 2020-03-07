@@ -26,10 +26,6 @@ cfg = rs.config()
 cfg.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
 cfg.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
 
-# scale = rs2_get_depth_scale(sensor, NULL)
-# const uint16_t * image = (const uint16_t *)rs2_get_frame_data(frame, NULL)
-# float depth_in_meters = 1 / (scale * image[pixel_index])
-
 try:
     while True:
         profile = pipe.start(cfg)
@@ -94,7 +90,6 @@ try:
 
         depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(aligned_depth, alpha=0.03), cv2.COLORMAP_BONE)
 
-        # edges = cv2.Canny(copied_depth, 100, 200)
         aligned_depth = aligned_depth * depth_scale
 
         interested_depth = region_of_interest(copied_depth, vertices)
@@ -108,6 +103,7 @@ try:
 
         # Calculate mean depth in interested region of depth image:
         mask = np.zeros(colorized_depth.shape[:2], dtype=np.uint8)
+
         # top, left, bottom, right
         mask[top_left[1]:bottom_left[1], top_left[0]:top_right[0]] = 255
         colorized_depth = cv2.bitwise_and(colorized_depth, colorized_depth, mask=mask)
@@ -117,7 +113,6 @@ try:
         imgray = cv2.cvtColor(depth_colormap, cv2.COLOR_BGR2GRAY)
         blurred = cv2.GaussianBlur(imgray, (5, 5), 0)
         thresh = cv2.threshold(blurred, 25, 255, cv2.THRESH_BINARY_INV)[1]
-        # thresh = cv2.bitwise_and(thresh, thresh, mask=mask)
 
         kernel = np.ones((5, 5), np.uint8)
         erosion = cv2.erode(thresh, kernel, iterations=5)
@@ -152,7 +147,8 @@ try:
                 cy = int(y + h / 2)
                 cv2.circle(color, (cx, cy), 10, (255, 0, 0))
                 # print('Object ', i, ' distance: ', cv2.mean(aligned_depth, mask=mask))
-                text = 'Dist: ' + str(cv2.mean(aligned_depth, mask=mask)[0])
+                # text = 'Dist: ' + str(cv2.mean(aligned_depth, mask=mask)[0])
+                text = str(area)
                 try:
                     cv2.putText(color, text, (cx, cy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
                 except Exception as b:

@@ -54,20 +54,17 @@ class ObjectDetection:
                 cv2.drawContours(mask, contours, i, 255, -1)
                 # Get Moments and center location:
                 area = cv2.contourArea(cnt)
-                x, y, w, h = cv2.boundingRect(cnt)
-                cv2.rectangle(self.rgb, (x, y), (x + w, y + h), (0, 255, 0), 2)
-                cx = int(x + w / 2)
-                cy = int(y + h / 2)
-                cv2.circle(self.rgb, (cx, cy), 2, (255, 0, 0))
-                dist = cv2.mean(self.depth, mask=mask)[0]
                 if area > self.area_thresh:
+                    x, y, w, h = cv2.boundingRect(cnt)
+                    cv2.rectangle(self.rgb, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                    cx = int(x + w / 2)
+                    cy = int(y + h / 2)
+                    cv2.circle(self.rgb, (cx, cy), 10, (255, 0, 0))
+                    dist = cv2.mean(self.depth, mask=mask)[0]
                     self.closest.append(self.Object(cx, cy, dist, w, h))
-                text = 'Dist: ' + str(dist)
-                try:
+                    text = 'Dist: ' + str(dist)
                     cv2.putText(self.rgb, text, (cx, cy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-                except Exception as b:
-                    print(b)
-            cv2.drawContours(self.rgb, cnt, -1, (0, 255, 0))
+            # cv2.drawContours(self.rgb, cnt, -1, (0, 255, 0))
 
     def visualize(self):
         images = np.hstack((self.rgb, self.depth_color))

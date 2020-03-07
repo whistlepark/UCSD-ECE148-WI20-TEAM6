@@ -42,7 +42,8 @@ try:
         aligned_depth = np.asanyarray(aligned_depth_frame.get_data())
 
         object_detect = ObjectDetection()
-        object_detect.run(color, aligned_depth)
+        objects = object_detect.run(color, aligned_depth)
+        # print(objects)
         object_detect.visualize()
         colorizer = rs.colorizer()
         colorized_depth = np.asanyarray(colorizer.colorize(aligned_depth_frame).get_data())

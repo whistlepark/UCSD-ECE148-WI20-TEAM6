@@ -21,7 +21,7 @@ class ObjectDetection:
             self.width = None
         self.depth_scale = 0.0010000000474974513
         self.closest = []
-        self.area_thresh = 500  # filter out objects less than 500 px^2
+        self.area_thresh = 2000  # filter out objects less than 500 px^2
 
     def update(self, rgb, depth):
         self.rgb = rgb
@@ -35,7 +35,7 @@ class ObjectDetection:
         return self.closest
 
     def process(self):
-        closest = []
+        self.closest = []
         # Perform processing on depth image: convert to cv image first
         self.depth = self.depth * self.depth_scale  # Convert values to float distance values
         imgray = cv2.cvtColor(self.depth_color, cv2.COLOR_BGR2GRAY)
@@ -85,11 +85,3 @@ class ObjectDetection:
 
         def __gt__(self, other):
             return not self < other
-
-        def update(self, cx, cy, distance, width, height):
-            self.cx = cx
-            self.cy = cy
-            self.distance = distance
-            self.width = width
-            self.height = height
-            return self

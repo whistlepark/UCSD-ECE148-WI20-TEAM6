@@ -23,15 +23,21 @@ class ObjectDetection:
         self.closest = []
         self.area_thresh = 2000  # filter out objects less than 500 px^2
 
-    def update(self, rgb, depth):
-        self.rgb = rgb
-        self.depth = depth
+    def update_images(self, rgb, depth):
+        self.rgb = np.asanyarray(rgb)
+        self.depth = np.asanyarray(depth)
         self.height, self.width = rgb.shape[:2]
         self.depth_color = cv2.applyColorMap(cv2.convertScaleAbs(self.depth, alpha=0.03), cv2.COLORMAP_BONE)
 
-    def run(self, rgb, depth):
-        self.update(rgb, depth)
-        self.process()
+    def update(self):
+        if self.rgb is not None:
+            self.visualize()
+
+    def run_threaded(self, rgb, depth):
+        if rgb is not None:
+            self.update_images(rgb, depth)
+            self.process()
+            #self.visualize()
         return self.closest
 
     def process(self):
@@ -85,3 +91,11 @@ class ObjectDetection:
 
         def __gt__(self, other):
             return not self < other
+
+        def update(self, cx, cy, distance, width, height):
+            self.cx = cx
+            self.cy = cy
+            self.distance = distance
+            self.width = width
+            self.height = height
+            return self
